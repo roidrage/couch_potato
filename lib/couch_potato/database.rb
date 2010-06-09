@@ -1,3 +1,5 @@
+require 'benchmark'
+
 module CouchPotato
   class Database
 
@@ -44,21 +46,23 @@ module CouchPotato
     #
     #   db.view(User.all(keys: [1, 2, 3]))
     def view(spec)
-      results = CouchPotato::View::ViewQuery.new(
-        database,
-        spec.design_document,
-        {spec.view_name => {
-          :map => spec.map_function,
-          :reduce => spec.reduce_function}
-        },
-        ({spec.list_name => spec.list_function} unless spec.list_name.nil?)
-      ).query_view!(spec.view_parameters)
-      processed_results = spec.process_results results
-      processed_results.instance_eval "def total_rows; #{results['total_rows']}; end" if results['total_rows']
-      processed_results.each do |document|
-        document.database = self if document.respond_to?(:database=)
-      end if processed_results.respond_to?(:each)
-      processed_results
+      benchmark(spec) do
+        results = CouchPotato::View::ViewQuery.new(
+          database,
+          spec.design_document,
+          {spec.view_name => {
+            :map => spec.map_function,
+            :reduce => spec.reduce_function}
+          },
+          ({spec.list_name => spec.list_function} unless spec.list_name.nil?)
+        ).query_view!(spec.view_parameters)
+        processed_results = spec.process_results results
+        processed_results.instance_eval "def total_rows; #{results['total_rows']}; end" if results['total_rows']
+        processed_results.each do |document|
+          document.database = self if document.respond_to?(:database=)
+        end if processed_results.respond_to?(:each)
+        processed_results
+      end
     end
 
     # saves a document. returns true on success, false on failure
@@ -106,6 +110,20 @@ module CouchPotato
     end
 
     private
+
+    def benchmark(spec, &block)
+      if CouchPotato.logger.debug?
+        results = nil
+        runtime = Benchmark.realtime do
+          results = block.call
+        end * 1000
+        log_entry = '[CouchPotato] view query: %s#%s (%.1fms)' % [spec.send(:klass).name, spec.view_name, runtime]
+        CouchPotato.logger.debug(log_entry)
+        results
+      else
+        yield
+      end
+    end
 
     def create_document(document, validate)
       document.database = self

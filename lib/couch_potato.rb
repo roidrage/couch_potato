@@ -21,6 +21,22 @@ unless defined?(CouchPotato)
     def self.couchrest_database
       @@__couchrest_database ||= CouchRest.database(full_url_to_database)
     end
+    
+    def self.log_level=(level)
+      @log_level = level
+    end
+
+    def self.log_level
+      @log_level || :info
+    end
+
+    def self.logger
+      @logger ||= Logger.new(STDOUT) 
+    end
+    
+    def self.logger=(logger)
+      @logger = logger
+    end
 
     private
 
