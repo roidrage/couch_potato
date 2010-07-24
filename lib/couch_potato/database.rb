@@ -118,7 +118,7 @@ module CouchPotato
           results = block.call
         end * 1000
         log_entry = '[CouchPotato] view query: %s#%s (%.1fms)' % [spec.send(:klass).name, spec.view_name, runtime]
-        CouchPotato.logger.debug(log_entry)
+        CouchPotato.logger.info(log_entry)
         results
       else
         yield
