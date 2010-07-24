@@ -106,7 +106,7 @@ module CouchPotato
     alias_method :load, :load_document
 
     def inspect #:nodoc:
-      "#<CouchPotato::Database>"
+      "#<CouchPotato::Database @root=\"#{database.root}\">"
     end
 
     private
