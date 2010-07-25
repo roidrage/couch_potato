@@ -112,7 +112,7 @@ module CouchPotato
     private
 
     def benchmark(spec, &block)
-      if CouchPotato.logger.debug?
+      if CouchPotato.logger.info?
         results = nil
         runtime = Benchmark.realtime do
           results = block.call
