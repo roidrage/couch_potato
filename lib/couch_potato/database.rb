@@ -1,3 +1,5 @@
+require 'couch_potato/callbacks/database'
+
 module CouchPotato
   class Database
 
@@ -71,18 +73,12 @@ module CouchPotato
       end
     end
     alias_method :save, :save_document
-    
-    # saves a document, raises a CouchPotato::Database::ValidationsFailedError on failure
-    def save_document!(document)
-      save_document(document) || raise(ValidationsFailedError.new(document.errors.full_messages))
-    end
+    alias_method :save_document!, :save_document
     alias_method :save!, :save_document!
 
     def destroy_document(document)
-      document.run_callbacks :before_destroy
       document._deleted = true
       database.delete_doc document.to_hash
-      document.run_callbacks :after_destroy
       document._id = nil
       document._rev = nil
     end
@@ -107,55 +103,26 @@ module CouchPotato
 
     private
 
-    def create_document(document, validate)
-      document.database = self
-      
-      if validate
-        document.errors.clear
-        document.run_callbacks :before_validation_on_save
-        document.run_callbacks :before_validation_on_create
-        return false unless valid_document?(document)
+    module Lifecycle
+      def create_document(document, validate)
+        document.database = self
+        result = database.save_doc document.to_hash
+        document._rev = result['rev']
+        document._id = result['id']
+        true
       end
-      
-      document.run_callbacks :before_save
-      document.run_callbacks :before_create
-      res = database.save_doc document.to_hash
-      document._rev = res['rev']
-      document._id = res['id']
-      document.run_callbacks :after_save
-      document.run_callbacks :after_create
-      true
+
+      def update_document(document, validate)
+        result = database.save_doc document.to_hash
+        document._rev = result['rev']
+        true
+      end
     end
 
-    def update_document(document, validate)
-      if validate
-        document.errors.clear
-        document.run_callbacks :before_validation_on_save
-        document.run_callbacks :before_validation_on_update
-        return false unless valid_document?(document)
-      end
-      
-      document.run_callbacks :before_save
-      document.run_callbacks :before_update
-      res = database.save_doc document.to_hash
-      document._rev = res['rev']
-      document.run_callbacks :after_save
-      document.run_callbacks :after_update
-      true
-    end
-
-    def valid_document?(document)
-      errors = document.errors.errors.dup
-      document.valid?
-      errors.each_pair do |k, v|
-        v.each {|message| document.errors.add(k, message)}
-      end
-      document.errors.empty?
-    end
-    
     def database
       @database
     end
-
+    include CouchPotato::Database::Lifecycle
+    include CouchPotato::Callbacks::Database
   end
 end
