@@ -46,7 +46,7 @@ module CouchPotato
     #
     #   db.view(User.all(keys: [1, 2, 3]))
     def view(spec)
-      benchmark(spec) do
+      benchmark(spec.send(:klass).name, spec.view_name) do
         results = CouchPotato::View::ViewQuery.new(
           database,
           spec.design_document,
@@ -96,9 +96,11 @@ module CouchPotato
     def load_document(id)
       raise "Can't load a document without an id (got nil)" if id.nil?
       begin
-        instance = database.get(id)
-        instance.database = self
-        instance
+        benchmark(id) do
+          instance = database.get(id)
+          instance.database = self
+          instance
+        end
       rescue(RestClient::ResourceNotFound)
         nil
       end
@@ -111,13 +113,13 @@ module CouchPotato
 
     private
 
-    def benchmark(spec, &block)
+    def benchmark(*name, &block)
       if CouchPotato.logger.info?
         results = nil
         runtime = Benchmark.realtime do
           results = block.call
         end * 1000
-        log_entry = '[CouchPotato] view query: %s#%s (%.1fms)' % [spec.send(:klass).name, spec.view_name, runtime]
+        log_entry = '[CouchPotato] view query: %s (%.1fms)' % [name.join("#"), runtime]
         CouchPotato.logger.info(log_entry)
         results
       else
