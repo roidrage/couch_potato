@@ -169,6 +169,14 @@ describe 'view' do
     end
   end
 
+  describe "with the keys view option" do
+    it "should return a set of rows for multiple reduce results" do
+      @db.save_document Build.new(:state => 'success', :time => '2008-01-01')
+      @db.save_document Build.new(:state => 'success', :time => '2008-02-01')
+      @db.view(Build.timeline(:keys => ['2008-01-01', '2008-02-01'], :reduce => true, :group => true, :include_docs => false)).should ==
+        [{'value' => 2, 'key' => '2008-01-01'}, {'value' => 1, 'key' => '2008-02-01'}]
+    end
+  end
   describe "raw view" do
     it "should return the raw data" do
       @db.save_document Build.new(:state => 'success', :time => '2008-01-01')

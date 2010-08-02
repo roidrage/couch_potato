@@ -33,7 +33,11 @@ module CouchPotato
       
       def process_results(results)
         if count?
-          results['rows'].first.try(:[], 'value') || 0
+          if results['rows'].size > 1
+            results['rows']
+          else
+            results['rows'].first.try(:[], 'value') || 0
+          end
         else
           results['rows'].map { |row| row['doc'] }
         end
